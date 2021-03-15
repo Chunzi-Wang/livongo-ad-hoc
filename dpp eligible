@@ -1,0 +1,34 @@
+-- all dpp eligible
+with dpp_eligible as
+(
+select
+tracking_uuid,
+client_code,
+client_display_name,
+probably_eligible_dpp,
+prediabetes_risk_score,
+first_recruitable_for_prediabetes_utc
+from nonpii.recruitables_anonymized ra
+where client_code = 'GEHA'
+and probably_eligible_dpp is True
+and first_recruitable_for_diabetes_utc is null
+),
+
+-- exclude DM+ and WM+ enrollments:
+geha_enrolled as 
+(select  
+m.user_uuid
+from nonpii.member_program_daily_summary mpds
+join nonpii.members m  
+on m.user_id = mpds.user_id
+where mpds.client_code= 'GEHA'
+and program in ('Diabetes', 'Weight Management') 
+and enrolled=1
+and date_utc=CURRENT_DATE-1)
+
+-- effective dpp elligible:
+select *
+from dpp_eligible d
+left join geha_enrolled ge
+on d.tracking_uuid = ge.user_uuid
+where ge.user_uuid is null
